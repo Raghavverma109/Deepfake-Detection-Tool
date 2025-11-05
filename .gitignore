@@ -1,0 +1,28 @@
+# --- DEPENDENCIES (CRITICAL) ---
+# Ignores Node.js dependencies in the frontend folder
+frontend/node_modules/
+# Ignores Node.js dependencies in the backend folder
+backend/node_modules/
+
+# --- SECRETS & CONFIGURATION (CRITICAL) ---
+# Ignores all environment files
+.env
+
+# --- GENERATED FILES ---
+# Ignores Node lock files
+package-lock.json
+yarn.lock
+
+# --- MACHINE LEARNING ASSETS (Future-Proofing) ---
+# This ignores all trained model files, assuming they are placed in a 'models' directory.
+models/
+*.h5
+*.pth
+*.pt
+*.pkl
+
+# --- OS/IDE Files ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
