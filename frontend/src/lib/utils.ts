@@ -24,37 +24,53 @@ export const getToken = (): string | null => {
  * Utility function to make authenticated GET/POST requests.
  * It automatically attaches the JWT header.
  */
-export const makeAuthenticatedRequest = async (url: string, method: 'GET' | 'POST', body?: any) => {
-    const token = getToken();
-    if (!token) {
-        // Handle unauthenticated state: clear storage and redirect
-        localStorage.removeItem('deepfake-token');
-        window.location.href = '/signin'; // Forces a redirect to the login page
-        throw new Error('User is not authenticated. Redirecting to sign in.');
-    }
+export const makeAuthenticatedRequest = async (
+  url: string,
+  method: 'GET' | 'POST',
+  body?: any
+) => {
+  const token = getToken();
+  if (!token) {
+    localStorage.removeItem('deepfake-token');
+    window.location.href = '/signin';
+    throw new Error('User is not authenticated. Redirecting to sign in.');
+  }
 
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        // Attaching the JWT in the 'x-auth-token' header
-        'x-auth-token': token, 
-    };
+  // Check if body is FormData (used for file uploads)
+  const isFormData = body instanceof FormData;
 
-    const config: RequestInit = {
-        method: method,
-        headers: headers,
-        body: body ? JSON.stringify(body) : undefined,
-    };
-    
-    // Assumes backend is running on port 5000. Adjust if necessary.
-    const response = await fetch(`http://localhost:5000${url}`, config);
+  const headers: HeadersInit = {
+    'x-auth-token': token, // ✅ keep this — your backend expects this
+  };
 
-    // If the token is invalid or expired (401 status from the backend)
-    if (response.status === 401) {
-        // Clear invalid token and redirect to login
-        localStorage.removeItem('deepfake-token');
-        window.location.href = '/signin';
-        throw new Error('Session expired. Redirecting to sign in.');
-    }
+  // Only set Content-Type manually for non-FormData bodies
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
 
-    return response;
+  const config: RequestInit = {
+    method,
+    headers,
+    body: body
+      ? isFormData
+        ? body // ✅ send FormData directly
+        : JSON.stringify(body)
+      : undefined,
+  };
+
+  const response = await fetch(`http://localhost:5000${url}`, config);
+  console.log('Response status:', response.status);
+
+  if (response.status === 401) {
+    localStorage.removeItem('deepfake-token');
+    window.location.href = '/signin';
+    throw new Error('Session expired. Redirecting to sign in.');
+  }
+
+  return response;
+};
+
+export default {
+  getToken,
+  makeAuthenticatedRequest,
 };

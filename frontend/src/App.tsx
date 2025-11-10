@@ -1,9 +1,6 @@
-import { useState } from 'react'
-// 1. Import routing components
+import { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom'
 import { ThemeProvider } from './components/theme-provider'
-
-// 2. Import your components and pages
 import { Header } from './components/header'
 import { Footer } from './components/footer'
 import { DeepfakeDetector } from './components/deepfake-detector'
@@ -11,70 +8,85 @@ import ProtectedRoute from './components/ProtectedRoute'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import NotFound from './pages/NotFound'
-import HistorySidebar from './components/HistorySidebar.tsx' // <-- NEW IMPORT
+import HistorySidebar from './components/HistorySidebar.tsx'
+import HistoryDetails from './pages/HistoryDetails'
+import HistoryPage from './pages/HistoryPage'
+import api from './lib/utils'
 
-// Helper function to check authentication state for conditional rendering
-const isAuthenticated = () => !!localStorage.getItem('deepfake-token');
+// Helper function to check authentication
+const isAuthenticated = () => !!localStorage.getItem('deepfake-token')
 
+// 🧩 Layout component that receives onSelectItem prop
+const MainLayout = ({ onSelectItem }: { onSelectItem: (item: any) => void }) => {
+  const isUserAuthenticated = isAuthenticated()
 
-// 3. Create a layout component to keep Header/Footer consistent
-const MainLayout = () => {
-    const isUserAuthenticated = isAuthenticated();
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar visible only when user is logged in */}
+        {isUserAuthenticated && (
+          <HistorySidebar onSelectItem={onSelectItem} />
+        )}
 
-    return (
-        <div className="min-h-screen bg-background flex flex-col">
-          <Header />
-          
-          {/* Main content area: Flex container for Sidebar + Detector */}
-          <div className="flex flex-1 overflow-hidden"> 
-              
-              {/* 🛑 SIDEBAR: Fixed position, hidden on mobile (md:block) */}
-              {isUserAuthenticated && (
-                  <HistorySidebar onSelectItem={(item) => console.log("Selected item:", item)} />
-              )}
-
-              {/* MAIN CONTENT AREA: Adjust margin based on sidebar visibility */}
-              {/* On desktop (md), if authenticated, push content over by the sidebar width (w-64) */}
-              <main className={`flex-1 overflow-y-auto p-4 ${isUserAuthenticated ? 'md:pl-68' : ''}`}> 
-                  <Outlet /> 
-              </main>
-
-          </div>
-
-          <Footer />
-        </div>
-    );
-};
-
+        {/* Main content */}
+        <main className={`flex-1 overflow-y-auto p-4 ${isUserAuthenticated ? 'md:pl-68' : ''}`}>
+          <Outlet />
+        </main>
+      </div>
+      <Footer />
+    </div>
+  )
+}
 
 function App() {
-    return (
-        <Router> 
-            <ThemeProvider defaultTheme="dark" storageKey="deepguard-ui-theme">
-                
-                <Routes>
-                    
-                    <Route path="/" element={<MainLayout />}>
-                        
-                        {/* PUBLIC ROUTES */}
-                        <Route path="/signup" element={<SignUp />} />
-                        <Route path="/signin" element={<SignIn />} />
-                        
-                        {/* PROTECTED ROUTES */}
-                        <Route element={<ProtectedRoute />}>
-                            {/* This is your main protected content route */}
-                            <Route index element={<DeepfakeDetector />} /> 
-                        </Route>
+  const [historyData, setHistoryData] = useState<any[]>([])
+  const [selectedItem, setSelectedItem] = useState<any | null>(null)
 
-                        {/* CATCH-ALL ROUTE */}
-                        <Route path="*" element={<NotFound />} /> 
-                        
-                    </Route>
-                </Routes>
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const response = await api.get('/api/analysis/history')
+        setHistoryData(response.data)
+      } catch (err) {
+        console.error('Failed to fetch history:', err)
+      }
+    }
 
-            </ThemeProvider>
-        </Router>
-    )
+    fetchHistory()
+  }, [])
+
+  return (
+    <Router>
+      <ThemeProvider defaultTheme="dark" storageKey="deepguard-ui-theme">
+        <Routes>
+          <Route path="/" element={<MainLayout onSelectItem={setSelectedItem} />}>
+            {/* Public routes */}
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/signin" element={<SignIn />} />
+
+            {/* Protected routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route index element={<DeepfakeDetector />} />
+
+              {/* History page */}
+              <Route
+                path="/history"
+                element={<HistoryPage history={historyData} onSelect={setSelectedItem} />}
+              />
+              <Route
+                path="/history/:id"
+                element={<HistoryDetails selectedItem={selectedItem} />}
+              />
+            </Route>
+
+            {/* Not found */}
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </ThemeProvider>
+    </Router>
+  )
 }
 
 export default App
